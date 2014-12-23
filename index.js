@@ -63,24 +63,22 @@ var FFOS_Cli = function FFOS_Cli() {
       console.log('Doing push for file ' + remoteFile);
       pushFile(localZip, remoteFile, function onPushed(err, success) {
         // Know bug in adb library it returns error 15 despite of uploading the file
-        if (err && err != 15) {
+        if (err  && err != 15) {
           callback(err);
+          console.log("Application push finished with an error".red);
           return;
-        }
-
-        installRemote(localPort, appId, appType, callback);
+        } else if (err){
+          console.log("Red herring, error 15 pushing app: Ignore");
+        } else {
+          installRemote(localPort, appId, appType, callback);
+        } 
       });
     });
 
   };
 
-  
-  /*
-    For closing an app just follow the steps:
-    1.- Forward the remote debugger port (use config if present)
-    2.- Use the remote client to tell the system to stop the app
-  */
-  var closeApp = function closeApp(appId, callback) {
+  // Executes a specific command for the "webappsactor" and the appId
+  var appCommand = function appCommand(command, appId, actor, callback) {
     var localPort = 'tcp:6000';
     var remotePort = 'localfilesystem:/data/local/debugger-socket';
     if (config && config.localPort && config.remotePort) {
@@ -89,25 +87,7 @@ var FFOS_Cli = function FFOS_Cli() {
     }
 
     adb.forward(localPort, remotePort, function onForward() {
-      closeRemote(localPort, appId, callback);
-    });
-  };
-
-  /*
-    For launching an app just follow the steps:
-    1.- Forward the remote debugger port (use config if present)
-    2.- Use the remote client to tell the system to launch the app
-  */
-  var launchApp = function launchApp(appId, callback) {
-    var localPort = 'tcp:6000';
-    var remotePort = 'localfilesystem:/data/local/debugger-socket';
-    if (config && config.localPort && config.remotePort) {
-      localPort = config.localPort;
-      remotePort = config.remotePort;
-    }
-
-    adb.forward(localPort, remotePort, function onForward() {
-      launchRemote(localPort, appId, callback);
+      appCommandRemote(localPort, command, appId, actor, callback);
     });
   };
 
@@ -137,22 +117,10 @@ var FFOS_Cli = function FFOS_Cli() {
     });
   };
 
-  // Uses the remote protocol to tell the system to stop an app
-  var closeRemote = function closeRemote(remotePort, appId, cb) {
+  // Uses the remote protocol to execute an app
+  var appCommandRemote = function appCommandRemote(remotePort, command, appId, actor, cb) {
     remote.init(remotePort.split(':')[1]);
-    remote.closeApp(appId, function onClose(err, data) {
-      if (err) {
-        cb(err);
-        return;
-      }
-      cb(null, data);
-    });
-  };
-
-  // Uses the remote protocol to tell the system to launch an app
-  var launchRemote = function launchRemote(remotePort, appId, cb) {
-    remote.init(remotePort.split(':')[1]);
-    remote.launchApp(appId, function onLaunch(err, data) {
+    remote.appCommand(command, appId, actor, function onLaunch(err, data) {
       if (err) {
         cb(err);
         return;
@@ -199,8 +167,7 @@ var FFOS_Cli = function FFOS_Cli() {
     'screenshot': screenshot,
     'installHostedApp': installHostedApp,
     'installPackagedApp': installPackagedApp,
-    'closeApp': closeApp,
-    'launchApp': launchApp,
+    'appCommand': appCommand,
     'resetB2G': resetB2G
   };
 

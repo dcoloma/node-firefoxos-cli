@@ -26,13 +26,12 @@ var RemoteDebugger = function RemoteDebugger() {
         onError(e + ' ::: ' + data);
       }
 
-      //console.log(JSON.stringify(currentObject));
-
       if (!this.tabList && 'tabs' in currentObject) {
         // Wait till one data object contains the
         // tabs information, and extract the selected
         // actor from it
         var tabList = currentObject;
+
         if (!actorName in tabList) {
           onError('Could not find actor ' + actorName);
           client.end();
@@ -43,8 +42,8 @@ var RemoteDebugger = function RemoteDebugger() {
         // send the message to the proper actor
         this.tabList = tabList;
         this.actor = tabList[actorName];
-
         message.to = tabList[actorName];
+
         var msg = JSON.stringify(message);
         client.write(msg.length + ':' + msg);
       } else if (!('error' in currentObject) &&
@@ -80,25 +79,17 @@ var RemoteDebugger = function RemoteDebugger() {
       callback(e);
     });
   };
-  
-  var closeApp = function closeApp(name, callback) {
-    var message = {
-      type: 'close',
-      manifestURL: "app://" + name + "/manifest.webapp"
-    };
-    var op = RemoteOperation('webappsActor', message, function onResponse(data) {
-      callback(null, data);
-    }, function onError(e) {
-      callback(e);
-    });
-  };
 
-  var launchApp = function launchApp(name, callback) {
+  var appCommand = function appCommand(command, name, agent, callback) {
     var message = {
-      type: 'launch',
+      type: command,
       manifestURL: "app://" + name + "/manifest.webapp"
     };
-    var op = RemoteOperation('webappsActor', message, function onResponse(data) {
+    if (agent == null)
+      var actor = "webappsActor";
+    else 
+      var actor = agent;
+    var op = RemoteOperation(actor, message, function onResponse(data) {
       callback(null, data);
     }, function onError(e) {
       callback(e);
@@ -108,8 +99,7 @@ var RemoteDebugger = function RemoteDebugger() {
   return {
     'init': init,
     'installApp': installApp,
-    'closeApp': closeApp,
-    'launchApp': launchApp
+    'appCommand': appCommand
   };
 }();
 
